@@ -8,8 +8,6 @@ output: html_notebook
 Data synthesis for Evidence Stream 2, update to TARA.
 
 Code author: Charlotte Page 
-Date: 
-
 
 # Install libraries and download data
 

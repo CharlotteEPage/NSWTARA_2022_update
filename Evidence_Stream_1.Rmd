@@ -8,8 +8,6 @@ output: html_notebook
 Data synthesis for Evidence Stream 1, update to TARA.
 
 Code author: Charlotte Page 
-Date: 
-
 
 # Install libraries and download data
 
@@ -868,10 +866,6 @@ threat.cat.proportion <- estuarine.threatcat.split  %>% group_by(Receptor_catego
 
 Sankey diagram
 ```{r}
-library(ggsankey)
-
-install.packages("ggalluvial")
-library(ggalluvial)
 
 ggplot(data = estuarine.threatcat.split,
        aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
