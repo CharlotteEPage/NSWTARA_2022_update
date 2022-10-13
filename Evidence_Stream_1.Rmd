@@ -1,0 +1,1027 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Evidence Stream 1 
+
+Data synthesis for Evidence Stream 1, update to TARA.
+
+Code author: Charlotte Page 
+Date: 
+
+
+# Install libraries and download data
+
+```{r}
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(splitstackshape)
+library(stringr)
+library(pals)
+library(ggsankey)
+library(ggalluvial)
+
+es1 <- read.csv("TARA_ES1_data_extraction.csv")
+
+# Fill all blank cells with NA
+
+es1.na <- es1 %>% mutate_all(na_if,"")
+
+# Filter out studies not included for data extraction 
+
+included <- es1.na  %>% filter(grepl('NA', Exclusion_reason))
+
+
+```
+
+# Specify a plotting theme for the whole TARA report 
+
+```{r}
+my_plot_theme <- function(){
+  theme_bw() +
+    theme(text = element_text(family = "Helvetica"), # Insert your favourite font
+          axis.text = element_text(size = 14), # Y and x axis font size
+          axis.title = element_text(size = 16 ), # Axis title font size
+          axis.line.x = element_line(color="black"), 
+          axis.line.y = element_line(color="black"), 
+          panel.border = element_blank(),
+          panel.grid.major.x = element_blank(),  # panel.grid adds a blank border to your plot.       
+          panel.grid.minor.x = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          panel.grid.major.y = element_blank(),  
+          plot.margin = unit(c(1, 1, 1, 1), units = , "cm"), # Adjust your plot margins (in cm)
+          plot.title = element_text(size = 18, vjust = 1, hjust = 0), # Title font adjustments
+          legend.text = element_text(size = 12),          
+          legend.title = element_blank(),                              
+          legend.position = c(0.95, 0.15), 
+          legend.key = element_blank(),
+          legend.background = element_rect(color = "black", 
+                                           fill = "transparent", 
+                                           size = 2, linetype = "blank")) # Sets the legend background to transparent
+}
+
+```
+
+# Overall data visualisation 
+
+```{r}
+
+included$Publication_year
+
+# Plot of publication years
+
+a <- ggplot(included, aes(x = Publication_year)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Year") +
+        scale_y_continuous(labels = scales::percent, name = "Peer-reviewed articles (%)") +
+        #heme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        my_plot_theme() +
+  theme_bw() +
+  ggtitle("Publication year") 
+
+# Plot of TARA regions 
+
+# Split articles that are associated with multiple regions into seperate rows
+included.region.split <- cSplit(included, "TARA_region", ",", "long")
+
+included.region.split$TARA_region <- as.factor(included.region.split$TARA_region)
+
+# To obtain the proportions
+included.region.split.table <- table(included.region.split$TARA_region)
+prop.table(included.region.split.table)
+
+# To plot the proportions 
+b <- ggplot(included.region.split, aes(x =TARA_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Peer-reviewed articles region")
+
+
+# Plot of TARA marine/estuarine focus 
+
+included$TARA_focus
+# Split articles that are associated with multiple regions into seperate rows
+included.focus.split <- cSplit(included, "TARA_focus", ",", "long")
+
+included.focus.split$TARA_focus <- as.factor(included.focus.split$TARA_focus)
+
+# To obtain the proportions
+focus.table <- table(included.focus.split$TARA_region)
+prop.table(focus.table)
+
+# To obtain the proportions TARA focus
+focus.table <- table(included.focus.split$TARA_region)
+prop.table(focus.table)
+
+# To plot the proportions 
+d <- ggplot(included.focus.split, aes(x = TARA_focus)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Focus") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Focus") #+
+  #coord_flip()
+
+
+```
+
+Seperate dataframe by TARA focus 
+
+```{r}
+
+# Coastal and marine 
+
+# Marine 
+# If the column contains marine (split by this)
+marine <- included %>% filter(grepl('marine', TARA_focus))
+
+# Estuarine 
+# If the column contains marine (split by this)
+estuarine <- included %>% filter(grepl('Estuarine', TARA_focus))
+
+```
+
+#Plots for location 
+
+Marine
+```{r}
+
+## Overall study location (North, Central, South)
+
+marine$TARA_region
+
+# Split articles that are associated with multiple regions into seperate rows
+marine.region.split <- cSplit(marine, "TARA_region", ",", "long")
+
+marine.region.split$TARA_region <- as.factor(marine.region.split$TARA_region)
+
+# To obtain the proportions
+marine.region.table <- table(marine.region.split$TARA_region)
+prop.table(marine.region.table)
+
+# To plot the proportions 
+
+e <- ggplot(marine.region.split, aes(x = TARA_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Marine regions") #+
+  #coord_flip()
+
+
+```
+
+Estuarine 
+
+```{r}
+
+## Overall study location (North, Central, South)
+
+estuarine$TARA_region
+
+# Split articles that are associated with multiple regions into seperate rows
+estuarine.region.split <- cSplit(estuarine, "TARA_region", ",", "long")
+
+estuarine.region.split$TARA_region <- as.factor(estuarine.region.split$TARA_region)
+
+#estuarine.region.split$TARA_region <- ordered(estuarine.region.split$TARA_region, levels = "	
+#1 - North", "2 - Central", "3 - South", "NA")
+
+# To obtain the proportions
+estuarine.region.table <- table(marine.region.split$TARA_region)
+prop.table(estuarine.region.table)
+
+# To plot the proportions 
+f <- ggplot(estuarine.region.split, aes(x = TARA_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Estuarine regions") #+
+  #coord_flip()
+
+
+```
+Locations of high research output 
+
+Marine
+```{r}
+
+marine <- rename(marine, "TARA_specific_region" = "TARA_region_specific.List.the.locations.where.the.study.was.completed.in.NSW..If.multiple.locations.seperate.by.with...")
+
+# Split articles that are associated with multiple regions into seperate rows
+marine.specific.region <- cSplit(marine, "TARA_specific_region", ";", "long")
+
+marine.specific.region$TARA_specific_region <- as.factor(marine.specific.region$TARA_specific_region)
+
+# Percent 
+marine.specific.region.table<- table(marine.specific.region$TARA_specific_region)
+prop.table(marine.specific.region.table)
+
+ggplot(marine.specific.region, aes(x = TARA_specific_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Marine regions") +
+  coord_flip()
+
+
+```
+
+
+Estuarine 
+```{r}
+
+estuarine<- rename(estuarine, "TARA_specific_region" = "TARA_region_specific.List.the.locations.where.the.study.was.completed.in.NSW..If.multiple.locations.seperate.by.with...")
+
+# Split articles that are associated with multiple regions into seperate rows
+estuarine.specific.region <- cSplit(estuarine, "TARA_specific_region", ";", "long")
+
+estuarine.specific.region$TARA_specific_region <- as.factor(estuarine.specific.region$TARA_specific_region)
+
+# Percent 
+estuarine.specific.region.table<- table(estuarine.specific.region$TARA_specific_region)
+prop.table(estuarine.specific.region.table)
+
+ggplot(estuarine.specific.region, aes(x = TARA_specific_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Estuarine regions") +
+  coord_flip()
+
+```
+
+# Threat source 
+
+Marine
+
+```{r}
+
+## Filter for threats only (not condition)
+
+# Rename column
+marine <- rename(marine, "TARA_Threat_source" = "Threat_source_category_1.Select.more.than.one.of.applicable.")
+
+str(marine$TARA_Threat_source)
+
+# Filter out articles that only talk about a condition 
+# Do this by filtering out NAs in the threat receptor category 
+
+marine.threats <- marine %>% filter(!is.na(TARA_Threat_source))
+
+# Split articles that are associated with multiple regions into seperate rows
+marine.threat.split <- cSplit(marine.threats, "TARA_Threat_source", ",", "long")
+
+marine.threat.split$TARA_Threat_source <- as.factor(marine.threat.split$TARA_Threat_source)
+
+# To obtain the proportions
+marine.threat.table <- table(marine.threat.split$TARA_Threat_source)
+prop.table(marine.threat.table)
+
+# To plot the proportions 
+ggplot(marine.threat.split, aes(x = TARA_Threat_source)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Threat category") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  ggtitle("Marine threats") +
+  theme_bw() +
+  coord_flip()
+
+
+
+```
+
+Estuarine 
+
+```{r}
+## Overall study location (North, Central, South)
+
+# Rename column
+estuarine <- rename(estuarine, "TARA_Threat_source" = "Threat_source_category_1.Select.more.than.one.of.applicable.")
+
+str(estuarine$TARA_Threat_source)
+
+# Filter out articles that only talk about a condition 
+# Do this by filtering out NAs in the threat receptor category 
+
+estuarine.threats <- estuarine %>% filter(!is.na(TARA_Threat_source))
+
+# Split articles that are associated with multiple regions into seperate rows
+estuarine.threat.split <- cSplit(estuarine.threats, "TARA_Threat_source", ",", "long")
+
+estuarine.threat.split$TARA_Threat_source <- as.factor(estuarine.threat.split$TARA_Threat_source)
+
+# To obtain the proportions
+estuarine.threat.table <- table(estuarine.threat.split$TARA_Threat_source)
+prop.table(estuarine.threat.table)
+
+# To plot the proportions 
+ggplot(estuarine.threat.split, aes(x = TARA_Threat_source)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Threat category") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  ggtitle("Estuarine threats") +
+  theme_bw() +
+  coord_flip()
+
+```
+
+# Donut charts of the specific threats 
+
+Split threats into categories (Resource use, land based activities, climate change)
+
+# Marine
+
+1. Climate change
+
+```{r}
+
+##### Split articles that are associated with multiple threats into seperate rows
+marine.threatcat.split <- cSplit(marine.threats, "Threat_source", ";", "long")
+
+marine.threatcat.split$Threat_source <- as.factor(marine.threatcat.split$Threat_source)
+
+# Climate change
+mar.climate.change <- marine.threatcat.split %>% filter(TARA_Threat_source == "Climate change")
+
+# To plot the proportions 
+
+mar.cc.threat.cat.proportion <- mar.climate.change  %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+mar.cc.threat.cat.proportion.shrt <- apply(mar.cc.threat.cat.proportion, 2, strtrim,3)
+mar.cc.threat.cat.proportion.frame <- as.data.frame(mar.cc.threat.cat.proportion.shrt )
+
+# Compute the cumulative percentages (top of each rectangle)
+mar.cc.threat.cat.proportion.frame$ymax = cumsum(mar.cc.threat.cat.proportion.frame$prop)
+
+# Compute the bottom of each rectangle
+mar.cc.threat.cat.proportion.frame$ymin = c(0, head(mar.cc.threat.cat.proportion.frame$ymax, n=-1))
+
+# Compute label position
+mar.cc.threat.cat.proportion.frame$labelPosition <- (mar.cc.threat.cat.proportion.frame$ymax + mar.cc.threat.cat.proportion.frame$ymin) / 2
+
+# Compute a good label
+mar.cc.threat.cat.proportion.frame$label <- paste0(mar.cc.threat.cat.proportion.frame$Threat_source, "\n value: ", mar.cc.threat.cat.proportion.frame$prop)
+
+# Make the plot
+ggplot(mar.cc.threat.cat.proportion.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=3
+             ) + # x here controls label position (inner / outer)
+ scale_fill_brewer(palette=4) +
+ scale_color_brewer(palette=4) +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+ theme_void() 
+ theme(legend.position = "none")
+
+```
+
+2. Land based activities 
+
+```{r}
+
+##### Land based activities 
+mar.land.use <- marine.threatcat.split %>% filter(TARA_Threat_source == "Land based activities")
+
+# To plot the proportions 
+
+mar.lu.threat.cat.proportion <- mar.land.use  %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+mar.lu.threat.cat.proportion.shrt <- apply(mar.lu.threat.cat.proportion, 2, strtrim,3)
+mar.lu.threat.cat.proportion.frame <- as.data.frame(mar.lu.threat.cat.proportion.shrt )
+
+# Compute the cumulative percentages (top of each rectangle)
+mar.lu.threat.cat.proportion.frame$ymax = cumsum(mar.lu.threat.cat.proportion.frame$prop)
+
+# Compute the bottom of each rectangle
+mar.lu.threat.cat.proportion.frame$ymin = c(0, head(mar.lu.threat.cat.proportion.frame$ymax, n=-1))
+
+# Compute label position
+mar.lu.threat.cat.proportion.frame$labelPosition <- (mar.lu.threat.cat.proportion.frame$ymax + mar.lu.threat.cat.proportion.frame$ymin) / 2
+
+# Compute a good label
+mar.lu.threat.cat.proportion.frame$label <- paste0(mar.lu.threat.cat.proportion.frame$Threat_source, "\n value: ", mar.lu.threat.cat.proportion.frame$prop)
+
+# Make the plot
+ggplot(mar.lu.threat.cat.proportion.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=4) + # x here controls label position (inner / outer)
+ scale_fill_manual(values=as.vector(stepped(11))) +
+scale_colour_manual(values=as.vector(stepped(11))) +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+  theme_void() 
+ # theme(legend.position = "none")
+
+```
+
+3. Resource use
+
+```{r}
+
+# Resource use
+
+mar.resource.use <- marine.threatcat.split %>% filter(TARA_Threat_source == "Resource use")
+
+# To plot the proportions 
+
+mar.ru.threat.cat.proportion <- mar.resource.use   %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+mar.ru.threat.cat.proportion.shrt <- apply(mar.ru.threat.cat.proportion, 2, strtrim,3)
+mar.ru.threat.cat.proportion.frame <- as.data.frame(mar.ru.threat.cat.proportion.shrt )
+
+# Compute the cumulative percentages (top of each rectangle)
+mar.ru.threat.cat.proportion.frame$ymax = cumsum(mar.ru.threat.cat.proportion.frame$prop)
+
+# Compute the bottom of each rectangle
+mar.ru.threat.cat.proportion.frame$ymin = c(0, head(mar.ru.threat.cat.proportion.frame$ymax, n=-1))
+
+# Compute label position
+mar.ru.threat.cat.proportion.frame$labelPosition <- (mar.ru.threat.cat.proportion.frame$ymax + mar.ru.threat.cat.proportion.frame$ymin) / 2
+
+# Compute a good label
+mar.ru.threat.cat.proportion.frame$label <- paste0(mar.ru.threat.cat.proportion.frame$Threat_source, "\n value: ", mar.ru.threat.cat.proportion.frame$prop)
+
+# Make the plot
+ggplot(mar.ru.threat.cat.proportion.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=4) + # x here controls label position (inner / outer)
+ scale_fill_brewer(palette="PRGn") +
+scale_color_brewer(palette="PRGn") +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+  theme_void() 
+ # theme(legend.position = "none")
+
+# NEED TO FIND A BETTER PALETTE 
+```
+
+# Estuarine 
+
+1. Climate change
+
+```{r}
+
+##### Split articles that are associated with multiple threats into seperate rows
+estuarine.threatcat.split <- cSplit(estuarine.threats, "Threat_source", ";", "long")
+
+estuarine.threatcat.split$Threat_source <- as.factor(estuarine.threatcat.split$Threat_source)
+
+# Climate change
+est.climate.change <- estuarine.threatcat.split %>% filter(TARA_Threat_source == "Climate change")
+
+# To plot the proportions 
+
+est.cc.threat.cat.proportion <- est.climate.change  %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+est.cc.threat.cat.proportion.shrt <- apply(est.cc.threat.cat.proportion, 2, strtrim,3)
+est.cc.threat.cat.proportion.frame <- as.data.frame(est.cc.threat.cat.proportion.shrt )
+
+# Compute the cumulative percentages (top of each rectangle)
+est.cc.threat.cat.proportion.frame$ymax = cumsum(est.cc.threat.cat.proportion.frame$prop)
+
+# Compute the bottom of each rectangle
+est.cc.threat.cat.proportion.frame$ymin = c(0, head(est.cc.threat.cat.proportion.frame$ymax, n=-1))
+
+# Compute label position
+est.cc.threat.cat.proportion.frame$labelPosition <- (est.cc.threat.cat.proportion.frame$ymax + est.cc.threat.cat.proportion.frame$ymin) / 2
+
+# Compute a good label
+est.cc.threat.cat.proportion.frame$label <- paste0(est.cc.threat.cat.proportion.frame$Threat_source, "\n value: ", est.cc.threat.cat.proportion.frame$prop)
+
+# Make the plot
+ggplot(est.cc.threat.cat.proportion.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=4) + # x here controls label position (inner / outer)
+ scale_fill_brewer(palette=4) +
+ scale_color_brewer(palette=4) +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+  theme_void() 
+ # theme(legend.position = "none")
+
+```
+```{r}
+
+##### Land based activities 
+
+# 14 colour paletter needed.
+
+library(pals)
+
+est.land.use <- estuarine.threatcat.split %>% filter(TARA_Threat_source == "Land based activities")
+
+# To plot the proportions 
+
+est.lu.threat.cat.proportion <- est.land.use  %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+est.lu.threat.cat.proportion.shrt <- apply(est.lu.threat.cat.proportion, 2, strtrim,3)
+est.lu.threat.cat.proportion.frame <- as.data.frame(est.lu.threat.cat.proportion.shrt )
+
+# Compute the cumulative percentages (top of each rectangle)
+est.lu.threat.cat.proportion.frame$ymax = cumsum(est.lu.threat.cat.proportion.frame$prop)
+
+# Compute the bottom of each rectangle
+est.lu.threat.cat.proportion.frame$ymin = c(0, head(est.lu.threat.cat.proportion.frame$ymax, n=-1))
+
+# Compute label position
+est.lu.threat.cat.proportion.frame$labelPosition <- (est.lu.threat.cat.proportion.frame$ymax + est.lu.threat.cat.proportion.frame$ymin) / 2
+
+# Compute a good label
+est.lu.threat.cat.proportion.frame$label <- paste0(est.lu.threat.cat.proportion.frame$Threat_source, "\n value: ", est.lu.threat.cat.proportion.frame$prop)
+
+ggplot(est.lu.threat.cat.proportion.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=4) + # x here controls label position (inner / outer)
+ scale_fill_manual(values=as.vector(stepped(14))) +
+scale_colour_manual(values=as.vector(stepped(14))) +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+  theme_void() 
+ # theme(legend.position = "none")
+
+
+```
+
+Resource use
+
+
+```{r}
+
+# Resource use
+
+est.resource.use <- estuarine.threatcat.split %>% filter(TARA_Threat_source == "Resource use")
+
+# To plot the proportions 
+
+est.ru.threat.cat.proportion <- est.resource.use   %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+est.ru.threat.cat.proportion.shrt <- apply(est.ru.threat.cat.proportion, 2, strtrim,3)
+est.ru.threat.cat.proportion.frame <- as.data.frame(est.ru.threat.cat.proportion.shrt )
+
+# Compute the cumulative percentages (top of each rectangle)
+est.ru.threat.cat.proportion.frame$ymax = cumsum(est.ru.threat.cat.proportion.frame$prop)
+
+# Compute the bottom of each rectangle
+est.ru.threat.cat.proportion.frame$ymin = c(0, head(est.ru.threat.cat.proportion.frame$ymax, n=-1))
+
+# Compute label position
+est.ru.threat.cat.proportion.frame$labelPosition <- (est.ru.threat.cat.proportion.frame$ymax + est.ru.threat.cat.proportion.frame$ymin) / 2
+
+# Compute a good label
+est.ru.threat.cat.proportion.frame$label <- paste0(est.ru.threat.cat.proportion.frame$Threat_source, "\n value: ", est.ru.threat.cat.proportion.frame$prop)
+
+# Make the plot
+ggplot(est.ru.threat.cat.proportion.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=4) + # x here controls label position (inner / outer)
+ scale_fill_brewer(palette="PRGn") +
+scale_color_brewer(palette="PRGn") +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+  theme_void() 
+ # theme(legend.position = "none")
+
+```
+
+# Marine assets 
+
+```{r}
+
+##### Split articles that are associated with multiple threats into separate rows
+# Split articles that are associated with multiple threats into seperate rows
+marine.threat.receptor <- cSplit(marine.threatcat.split, "Receptor_category.threat_receptor", ";", "long")
+
+
+marine.threat.receptor$Receptor_category.threat_receptor <- as.factor(marine.threat.receptor$Receptor_category.threat_receptor)
+
+# Climate change
+mar.climate.change.tr <- marine.threat.receptor %>% filter(TARA_Threat_source == "Climate change")
+
+View(mar.climate.change.tr)
+
+# Make a dataframe of the threat/specific threat/receptor/specific receptor
+
+mar.cc <- select(mar.climate.change.tr,DOI,Threat_source,
+       Specific_threat_source..If.detailed.specify.the.actual.threat.activity..If.multiple.threat.activities.are.listed.seperate.terms.in.a.list.with..,Receptor_category.threat_receptor,
+       Specific_receptor_category.threat_receptor.If.detailed.list.the.specific.receptor..If.there.is.more.than.one.receptor.measured.list.these.as.terms.separated.by..,Comment.for.extraction)
+
+write.csv(mar.cc,"Marine_threat_receptors_climate_change.csv")
+
+# Land based activities
+mar.lu.tr <- marine.threat.receptor %>% filter(TARA_Threat_source == "Land based activities")
+mar.lu <- select(mar.lu.tr,DOI,Threat_source,
+       Specific_threat_source..If.detailed.specify.the.actual.threat.activity..If.multiple.threat.activities.are.listed.seperate.terms.in.a.list.with..,Receptor_category.threat_receptor,
+       Specific_receptor_category.threat_receptor.If.detailed.list.the.specific.receptor..If.there.is.more.than.one.receptor.measured.list.these.as.terms.separated.by..,Comment.for.extraction)
+
+write.csv(mar.lu,"Marine_threat_receptors_land_based_activities.csv")
+
+# Resource use
+mar.ru.tr<- marine.threat.receptor %>% filter(TARA_Threat_source == "Resource use")
+
+mar.ru <- select(mar.ru.tr,DOI,Threat_source,
+       Specific_threat_source..If.detailed.specify.the.actual.threat.activity..If.multiple.threat.activities.are.listed.seperate.terms.in.a.list.with..,Receptor_category.threat_receptor,
+       Specific_receptor_category.threat_receptor.If.detailed.list.the.specific.receptor..If.there.is.more.than.one.receptor.measured.list.these.as.terms.separated.by..,Comment.for.extraction)
+
+write.csv(mar.ru,"Marine_threat_receptors_resource_use_activities.csv")
+
+```
+
+1. Climate change 
+
+
+```{r}
+
+library(ggalluvial)
+
+View(mar.climate.change.tr)
+
+
+ggplot(data = mar.climate.change.tr ,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+   scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+write.csv(mar.climate.change.tr, "Marine_climate_change_refs.csv")
+
+
+```
+
+```{r}
+mar.lu.tr
+
+ggplot(data = mar.lu.tr ,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+     scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+write.csv(mar.lu.tr, "Marine_land_based_activities_refs.csv")
+
+```
+
+```{r}
+mar.ru.tr
+
+ggplot(data = mar.ru.tr,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+      scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+write.csv(mar.ru.tr, "Marine_resource_use_refs.csv")
+
+```
+
+# Estuarine assets 
+
+```{r}
+
+##### Split articles that are associated with multiple threats into separate rows
+# Split articles that are associated with multiple threats into seperate rows
+estuarine.threat.receptor <- cSplit(estuarine.threatcat.split, "Receptor_category.threat_receptor", ";", "long")
+
+
+estuarine.threat.receptor$Receptor_category.threat_receptor <- as.factor(estuarine.threat.receptor$Receptor_category.threat_receptor)
+
+# Climate change
+est.climate.change.tr <- estuarine.threat.receptor %>% filter(TARA_Threat_source == "Climate change")
+
+est.cc <- select(est.climate.change.tr ,DOI,Threat_source,
+       Specific_threat_source..If.detailed.specify.the.actual.threat.activity..If.multiple.threat.activities.are.listed.seperate.terms.in.a.list.with..,Receptor_category.threat_receptor,
+       Specific_receptor_category.threat_receptor.If.detailed.list.the.specific.receptor..If.there.is.more.than.one.receptor.measured.list.these.as.terms.separated.by..,Comment.for.extraction)
+
+write.csv(est.cc,"Estuarine_threat_receptors_climate_change.csv")
+
+
+# Land based activities
+est.lu.tr <- estuarine.threat.receptor %>% filter(TARA_Threat_source == "Land based activities")
+
+est.lu <- select(est.lu.tr ,DOI,Threat_source,
+       Specific_threat_source..If.detailed.specify.the.actual.threat.activity..If.multiple.threat.activities.are.listed.seperate.terms.in.a.list.with..,Receptor_category.threat_receptor,
+       Specific_receptor_category.threat_receptor.If.detailed.list.the.specific.receptor..If.there.is.more.than.one.receptor.measured.list.these.as.terms.separated.by..,Comment.for.extraction)
+
+write.csv(est.cc,"Estuarine_threat_receptors_land_based_activities.csv")
+
+# Resource use
+est.ru.tr<- estuarine.threat.receptor %>% filter(TARA_Threat_source == "Resource use")
+
+est.ru <- select(est.ru.tr ,DOI,Threat_source,
+       Specific_threat_source..If.detailed.specify.the.actual.threat.activity..If.multiple.threat.activities.are.listed.seperate.terms.in.a.list.with..,Receptor_category.threat_receptor,
+       Specific_receptor_category.threat_receptor.If.detailed.list.the.specific.receptor..If.there.is.more.than.one.receptor.measured.list.these.as.terms.separated.by..,Comment.for.extraction)
+
+write.csv(est.cc,"Estuarine_threat_receptors_resource_use.csv")
+
+
+
+```
+
+1. Climate change 
+
+```{r}
+
+est.climate.change.tr 
+
+ggplot(data = est.climate.change.tr ,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+        scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+write.csv(est.climate.change.tr, "Estuary_climate_change_refs.csv")
+
+```
+
+```{r}
+est.lu.tr
+
+ggplot(data = est.lu.tr ,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+          scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+# save as a csv for appendix 
+
+write.csv(est.lu.tr, "Estuary_land_based_activities_refs.csv")
+
+View(est.lu.tr)
+```
+
+```{r}
+est.ru.tr
+
+ggplot(data = est.ru.tr,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+            scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+write.csv(est.ru.tr, "Estuary_resource_use_refs.csv")
+
+```
+
+Marine 
+
+```{r}
+
+estuarine.threatcat.split$Receptor_category.threat_receptor
+
+# Split articles that are associated with multiple threats into seperate rows
+estuarine.threat.receptor <- cSplit(estuarine.threatcat.split, "Receptor_category.threat_receptor", ";", "long")
+
+estuarine.threat.receptor$Receptor_category.threat_receptor <- as.factor(estuarine.threat.receptor$Receptor_category.threat_receptor)
+
+levels(estuarine.threat.receptor$Receptor_category.threat_receptor)
+
+# To obtain the proportions
+estuarine.threat.receptor.table <- table(estuarine.threat.receptor$Receptor_category.threat_receptor)
+prop.table(estuarine.threat.receptor.table )
+
+# To plot the proportions 
+
+threat.cat.proportion <- estuarine.threatcat.split  %>% group_by(Receptor_category.threat_receptor) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+
+```
+
+Sankey diagram
+```{r}
+library(ggsankey)
+
+install.packages("ggalluvial")
+library(ggalluvial)
+
+ggplot(data = estuarine.threatcat.split,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+```
+# Find some way of plotting trends onto this too?
+
+# Condition of marine asset
+
+```{r}
+
+marine <- rename(marine, "TARA_asset_condition" = "Condition_trend.If.the.condition.of.the.asset.is.discussed.specify.the.outcome.of.the.asset.compared.to.the.comparator..")
+
+# Remove NAs from condition trend 
+
+# Filter out studies not included for data extraction 
+
+marine_condition <- marine %>% filter(!is.na(TARA_asset_condition))
+
+write.csv(marine_condition,"Coastalandmarine_assets_condition_refs.csv")
+
+marine_condition.split.location <- cSplit(marine_condition, "TARA_region", ",", "long")
+
+# Location of conditions assets 
+
+marine_condition.split.location$TARA_region <- as.factor(marine_condition.split.location$TARA_region)
+
+# To obtain the proportions
+marine_condition.table <- table(marine_condition.split.location$TARA_region)
+prop.table(marine_condition.table)
+
+# To plot the proportions 
+
+ggplot(marine_condition.split.location, aes(x = TARA_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Marine regions") #+
+  #coord_flip()
+
+
+# Trend of condition 
+
+marine_condition.split.asset $TARA_asset_condition
+
+marine_condition.split.asset <- cSplit(marine_condition,"Receptor_category.threat_receptor", ";", "long")
+
+test <- marine_condition.split.asset   %>% group_by(Receptor_category.threat_receptor,TARA_asset_condition) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+view(test)
+
+# Truncate the names 
+
+test.a <- apply(test, 2, strtrim,3)
+test.a.frame <- as.data.frame(test.a)
+
+ggplot(test.a.frame, aes(x= Receptor_category.threat_receptor, y = prop, fill = TARA_asset_condition)) + 
+  geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
+  xlab("Marine asset") +
+  my_plot_theme() +
+  theme_bw() +
+  ggtitle("Marine asset condition trends") +
+  coord_flip() +
+  scale_fill_brewer(palette="Set1") +
+ scale_color_brewer(palette="Set1") 
+
+```
+
+Estuarine 
+
+
+```{r}
+
+estuarine <- rename(estuarine, "TARA_asset_condition" = "Condition_trend.If.the.condition.of.the.asset.is.discussed.specify.the.outcome.of.the.asset.compared.to.the.comparator..")
+
+# Remove NAs from condition trend 
+
+# Filter out studies not included for data extraction 
+
+estuarine_condition <- estuarine %>% filter(!is.na(TARA_asset_condition))
+
+write.csv(estuarine_condition,"Estuarine_assets_condition_refs.csv")
+
+estuarine_condition.split.location <- cSplit(estuarine_condition, "TARA_region", ",", "long")
+
+# Location of conditions assets 
+
+estuarine_condition.split.location$TARA_region <- as.factor(estuarine_condition.split.location$TARA_region)
+
+# To obtain the proportions
+estuarine_condition.table <- table(estuarine_condition.split.location$TARA_region)
+prop.table(marine_condition.table)
+
+# To plot the proportions 
+
+ggplot(estuarine_condition.split.location, aes(x = TARA_region)) +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        xlab("Region") +
+        scale_y_continuous(labels = scales::percent, name = "Proportion") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Estuarine regions") #+
+  #coord_flip()
+
+
+# Trend of condition 
+
+estuarine_condition.split.asset <- cSplit(estuarine_condition,"Receptor_category.threat_receptor", ";", "long")
+
+View(estuarine_condition.split.asset)
+test.est <- estuarine_condition.split.asset   %>% group_by(Receptor_category.threat_receptor,TARA_asset_condition) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+view(test.est)
+
+# Truncate the names 
+
+test.b <- apply(test.est, 2, strtrim,3)
+test.b.frame <- as.data.frame(test.b)
+
+#write.csv(test.b.frame, "Estuary_conditionplot_edit.csv")
+test.b.edit <- read.csv("Estuary_conditionplot_edit.csv")
+
+# Redorder levels of variable
+
+test.b.edit$TARA_asset_condition <- factor(test.b.edit$TARA_asset_condition, levels = c("Neg", "Pos", "Oth","Neu"))
+
+ggplot(test.b.edit, aes(x= Receptor_category.threat_receptor, y = prop, fill = TARA_asset_condition)) + 
+ geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
+          xlab("Estuarine asset") +
+    my_plot_theme() +
+  theme_bw() +
+  ggtitle("Estuarine asset condition trends") +
+    coord_flip() +
+  scale_fill_brewer(palette="Set1") +
+ scale_color_brewer(palette="Set1") 
+
+```
+
+```
+
+
