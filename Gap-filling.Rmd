@@ -557,7 +557,6 @@ ggplot(es1es2marine.proportion.shrt.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmi
 
 ```
 
-
 Estuarine, landbased activities
 
 
@@ -613,10 +612,125 @@ ggplot(es1es2estuarine.proportion.shrt.frame, aes(ymax=ymax, ymin=ymin, xmax=4, 
  # theme(legend.position = "none")
 
 
+```
+
+Resource use 
+
+
+```{r}
+
+# # Remove participation from es.threatreceptor.cat.focus
+
+es.threatreceptor.cat.focus.trim <- es.threatreceptor.cat.focus[!(es.threatreceptor.cat.focus$Receptor_category.threat_receptor == "	
+28 - Participation - Safety, health and wellbeing"),]
+
+es.threatreceptor.cat.focus.trimed <- es.threatreceptor.cat.focus.trim %>% slice(-c(110,111,112,116,117,118))
+
+View(es.threatreceptor.cat.focus.trim)
+resource_use <- es.threatreceptor.cat.focus.trimed %>% filter(Threat_source_category == "Resource use") 
+
+resource_use <- read.csv("resource_use.csv")
+
+ggplot(data = resource_use,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+   scale_fill_brewer(palette="Spectral") +
+ scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+
+land_activities <- es.threatreceptor.cat.focus.trimed %>% filter(Threat_source_category == "Land based activities") 
+
+
+ggplot(data = land_activities,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+  # scale_fill_brewer(palette="Spectral") +
+ #scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
+
+
+climate_change <- es.threatreceptor.cat.focus.trimed %>% filter(Threat_source_category == "Climate change") 
+
+
+ggplot(data = climate_change,
+       aes(axis1 = Threat_source, axis2 = Receptor_category.threat_receptor)) +
+  geom_alluvium(aes(fill = Receptor_category.threat_receptor)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() +
+  # scale_fill_brewer(palette="Spectral") +
+ #scale_color_brewer(palette="Spectral") +
+  theme(legend.position = "none")
+
 
 
 
 ```
+
+Donut plot 
+
+```{r}
+
+
+resource_use.proportion <- resource_use %>% group_by(Threat_source) %>% summarise(prop = (Percentage=n()/nrow(.))*100)
+
+# Truncate the names 
+
+resource_use.proportion.shrt <- apply(resource_use.proportion, 2, strtrim,3)
+resource_use.proportion.shrt.frame <- as.data.frame(resource_use.proportion.shrt)
+
+# Compute the cumulative percentages (top of each rectangle)
+resource_use.proportion.shrt.frame$ymax = cumsum(resource_use.proportion.shrt.frame$prop)
+
+# Compute the bottom of each rectangle
+resource_use.proportion.shrt.frame$ymin = c(0, head(resource_use.proportion.shrt.frame$ymax, n=-1))
+
+# Compute label position
+resource_use.proportion.shrt.frame$labelPosition <- (resource_use.proportion.shrt.frame$ymax + resource_use.proportion.shrt.frame$ymin) / 2
+
+# Compute a good label
+resource_use.proportion.shrt.frame$label <- paste0(resource_use.proportion.shrt.frame$Threat_source, "\n value: ", resource_use.proportion.shrt.frame$prop)
+
+# Make the plot
+ggplot(resource_use.proportion.shrt.frame, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Threat_source)) +
+  geom_rect() +
+  geom_text( x=5, aes(y=labelPosition, label=label, color=Threat_source), size=4) + # x here controls label position (inner / outer)
+ #scale_fill_brewer(palette="Paired") +
+ #scale_color_brewer(palette="Paired") +
+  coord_polar(theta="y") +
+  xlim(c(-1, 4)) +
+  theme_void() 
+ # theme(legend.position = "none")
+
+
+
+
+```
+
+
+
+Land based activities 
+
+
+Climate change 
+
 
 
 
